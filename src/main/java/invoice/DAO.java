@@ -76,11 +76,52 @@ public class DAO {
 	 * taille
 	 * @throws java.lang.Exception si la transaction a échoué
 	 */
-	public void createInvoice(CustomerEntity customer, int[] productIDs, int[] quantities)
-		throws Exception {
-		throw new UnsupportedOperationException("Pas encore implémenté");
-	}
-
+	public void createInvoice(CustomerEntity customer, int[] productIDs, int[] quantities)throws Exception {
+            if (productIDs.length!= quantities.length){
+		throw new UnsupportedOperationException("transaction échouer");}
+            else{
+                String sql_inv="INSERT INTO Invoice(CustomerID) VALUES(?)";
+                String sql_Item="INSERT INTO Item VALUES(?,?,?,?,(SELECT Price FROM Product WHERE ID=?))";
+               
+                
+                try(Connection myConnection = myDataSource.getConnection();
+                    PreparedStatement st_Inv= myConnection.prepareStatement(sql_inv,Statement.RETURN_GENERATED_KEYS);
+                    PreparedStatement st_item = myConnection.prepareStatement(sql_Item)){
+                    myConnection.setAutoCommit(false);
+                    
+                    try{
+                        st_Inv.setInt(1, customer.getCustomerId());
+                        st_Inv.executeUpdate();
+                        ResultSet cle=  st_Inv.getGeneratedKeys();
+                        cle.next();
+                        
+                        for (int i=0;i<quantities.length;i++){
+                            st_item.setInt(1,cle.getInt("ID"));
+                            st_item.setInt(2,i);
+                            st_item.setInt(3,productIDs[i]);
+                            st_item.setInt(4,quantities[i]);
+                            st_item.setFloat(5,productIDs[i]);
+                                
+                        }
+                        if(st_item.executeUpdate()!=1){
+                            throw new UnsupportedOperationException("transaction échouer");
+                            
+                        }
+                        
+                        
+                   myConnection.commit();
+                } catch (Exception ex) {
+                                myConnection.rollback(); // On annule la transaction
+                    throw ex;
+                } finally { // On revient au mode de fonctionnement sans transaction
+                        myConnection.setAutoCommit(true);
+                            }
+                }
+            } 
+            
+        }
+	
+       
 	/**
 	 *
 	 * @return le nombre d'enregistrements dans la table CUSTOMER
